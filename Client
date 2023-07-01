@@ -1,0 +1,69 @@
+// This is the Client Code
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+#define SERVER_IP "127.0.0.1"
+#define PORT 8080
+#define BUFFER_SIZE 1024
+
+int main() {
+    int sock = 0, valread;
+    struct sockaddr_in server_address;
+    char buffer[BUFFER_SIZE] = {0};
+
+    // Create socket
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(PORT);
+
+    // Convert IP address from string to binary form
+    if (inet_pton(AF_INET, SERVER_IP, &(server_address.sin_addr)) <= 0) {
+        perror("invalid address or address not supported");
+        exit(EXIT_FAILURE);
+    }
+
+    // Connect to the server
+    if (connect(sock, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
+        perror("connection failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive welcome message from the server
+    valread = read(sock, buffer, BUFFER_SIZE);
+    printf("%s\n", buffer);
+
+    // Start sending and receiving messages
+    while (1) {
+        // Send message to the server
+        printf("Client: ");
+        fgets(buffer, BUFFER_SIZE, stdin);
+        send(sock, buffer, strlen(buffer), 0);
+
+        // If client sends "exit", close the connection
+        if (strcmp(buffer, "exit\n") == 0) {
+            printf("Server disconnected.\n");
+            break;
+        }
+
+        // Clear the buffer
+        memset(buffer, 0, BUFFER_SIZE);
+
+        // Receive message from the server
+        valread = read(sock, buffer, BUFFER_SIZE);
+        printf("Server: %s\n", buffer);
+    }
+
+    // Close the socket
+    close(sock);
+
+    return 0;
+}
